@@ -42,7 +42,14 @@ public class CustomUV : EditorWindow {
         refresh = true;
     }
 
-	
+	[MenuItem("Assets/UV Mapper", true)]
+    static bool Validate()
+    {
+        if(Selection.activeGameObject == null)
+            return false;
+            
+        return Selection.activeGameObject.GetComponent<Renderer>() != null;
+    }
 
     void OnGUI()
     {
