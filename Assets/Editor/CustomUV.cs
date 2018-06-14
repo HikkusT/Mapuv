@@ -9,6 +9,7 @@ public class CustomUV : EditorWindow {
     #region Atlas settings
     Material AtlasMat;
     int tSize = 64;
+    int texel = 4;
     Color bgColor = Color.magenta;
     string atlasName = "TextureAtlas";
     string atlasMatName = "TextureAtlasMat";
@@ -24,18 +25,26 @@ public class CustomUV : EditorWindow {
 
     #region GUI Variables
     Vector2 scrollPos;
+    Editor gameObjectEditor;
+    Color colorToAdd;
+    bool showAdv = false;
     #endregion
 
+    #region Data Holders
 	GameObject gameObject;
     Mesh mesh;
     Texture2D textureAtlas = null;
     Texture2D workTex = null;
     Texture2D[] colors;
-    Editor gameObjectEditor;
-    Color colorToAdd;
     int colorPaletteLength = 0;
     int[] selectedColor;
     int[] prevSelected;
+    #endregion
+
+
+
+
+
 
     [MenuItem("Assets/UV Mapper")]
     static void ShowWindow()
@@ -53,6 +62,11 @@ public class CustomUV : EditorWindow {
         return Selection.activeGameObject.GetComponent<Renderer>() != null;
     }
 
+
+
+
+
+
     void OnGUI()
     {
         //Refreshes everything if needed
@@ -64,9 +78,6 @@ public class CustomUV : EditorWindow {
 
         if(colorStyle == null || editorStyle == null || boxStyle == null)
             CreateStyles();
-
-
-
 
 
 
@@ -86,7 +97,10 @@ public class CustomUV : EditorWindow {
 
 
 
-        GUILayout.Label(gameObject.name);
+        GUILayout.Label(gameObject.name, EditorStyles.boldLabel);
+
+        if(gameObject.GetComponent<Renderer>().sharedMaterial != AtlasMat)
+            EditorGUILayout.HelpBox("This Game Object isn't using the atlas material.", MessageType.Warning);
 
 
         scrollPos = GUILayout.BeginScrollView(scrollPos, GUILayout.Height(2 * position.height / 3));
@@ -116,33 +130,31 @@ public class CustomUV : EditorWindow {
 
         //Color Palette
         GUILayout.BeginHorizontal();
-        colorToAdd = EditorGUILayout.ColorField(new GUIContent(), colorToAdd, true, true, false, GUILayout.Width(colorMenuWidth/2));
+        colorToAdd = EditorGUILayout.ColorField(new GUIContent(), colorToAdd, true, false, false, GUILayout.Width(colorMenuWidth/2));
 
         if(GUILayout.Button("Add Color", GUILayout.Width(colorMenuWidth/2 - 15)))
-        {
-            SetColor(4, colorToAdd);
-        }
+            SetColor(colorToAdd);
 
         GUILayout.EndHorizontal();
 
         if(GUILayout.Button("Auto"))
-        {
             AutoUVMap();
-        }
 
         if(GUILayout.Button("Force Refresh"))
-        {
             Refresh();
-        }
 
         if(GUILayout.Button("Copy colors"))
-        {
             CopyColors();
-        }
 
-        if(GUILayout.Button("Reset"))
+        showAdv = EditorGUILayout.Foldout(showAdv, "Advanced settings");
+
+        if(showAdv)
         {
-            ResetTextureAtlas();
+            if(GUILayout.Button("Remove Color"))
+                RemoveColor();
+
+            if(GUILayout.Button("Reset"))
+                ResetTextureAtlas();
         }
 
         GUILayout.EndVertical();
@@ -165,37 +177,57 @@ public class CustomUV : EditorWindow {
 
 
     //Set a color in the next avaiable spot
-    void SetColor(int size, Color color)
+    void SetColor(Color color)
     {
         if(debug)
             Debug.Log("Adding color " + color);
 
-        for(int i = 0; i < size; i ++)
-            for(int j = 0; j < size; j ++)
-                workTex.SetPixel((j + size * colorPaletteLength) % textureAtlas.width, i + size * (int)Mathf.Floor((size * colorPaletteLength / textureAtlas.width)), color);
+        color = new Color(color.r, color.g, color.b, 1f);
+
+        for(int i = 0; i < texel; i ++)
+            for(int j = 0; j < texel; j ++)
+                workTex.SetPixel((j + texel * colorPaletteLength) % textureAtlas.width, i + texel * (int)Mathf.Floor((texel * colorPaletteLength / textureAtlas.width)), color);
 
         colorPaletteLength ++;
 
         SaveTex();
     }
 
-
-
-    void SetColor(int size, Color[] color)
+    void SetColor(Color[] color)
     {
         for(int z = 0; z < color.Length; z ++)
         {
             if(debug)
                 Debug.Log("Adding color " + color[z]);
 
-            for(int i = 0; i < size; i ++)
-                for(int j = 0; j < size; j ++)
-                    workTex.SetPixel((j + size * colorPaletteLength) % textureAtlas.width, i + size * (int)Mathf.Floor((size * colorPaletteLength / textureAtlas.width)), color[z]);
+            color[z] = new Color(color[z].r, color[z].g, color[z].b, 1f);
+
+            for(int i = 0; i < texel; i ++)
+                for(int j = 0; j < texel; j ++)
+                    workTex.SetPixel((j + texel * colorPaletteLength) % textureAtlas.width, i + texel * (int)Mathf.Floor((texel * colorPaletteLength / textureAtlas.width)), color[z]);
 
             colorPaletteLength ++;
         }
 
         SaveTex();
+    }
+
+
+    void RemoveColor()
+    {
+        if(debug)
+            Debug.Log("Removing Color..");
+
+        if(colorPaletteLength == 0)
+        {
+            if(debug)
+                Debug.Log("Couldn't remove the color. Texture Atlas already empty");
+        }
+        else
+        {
+            colorPaletteLength --;
+            SetColor(Color.magenta);
+        }
     }
 
 
@@ -361,7 +393,7 @@ public class CustomUV : EditorWindow {
             int[] tris = mesh.GetTriangles(i);
 
             for(int j = 0; j < tris.Length; j ++)
-                uvs[tris[j]] = new Vector2((2 + 4 * (selectedColor[i] % textureAtlas.width))/(float)textureAtlas.width, (2 + 4 * (4 * selectedColor[i] / textureAtlas.width))/(float)textureAtlas.height);
+                uvs[tris[j]] = new Vector2((texel/2 + texel * (selectedColor[i] % textureAtlas.width))/(float)textureAtlas.width, (texel/2 + texel * (texel * selectedColor[i] / textureAtlas.width))/(float)textureAtlas.height);
         }
 
         mesh.uv = uvs;
@@ -389,7 +421,7 @@ public class CustomUV : EditorWindow {
             Debug.Log("Successfully copied the colors to the texture atlas");
 
         if(shouldCopy)
-            SetColor(4, colorsToAdd);
+            SetColor(colorsToAdd);
     }
 
     void AutoUVMap()
