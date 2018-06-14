@@ -10,6 +10,8 @@ public class CustomUV : EditorWindow {
     Material AtlasMat;
     int tSize = 64;
     Color bgColor = Color.magenta;
+    string atlasName = "TextureAtlas";
+    string atlasMatName = "TextureAtlasMat";
     #endregion
 
     #region Window settings
@@ -47,7 +49,7 @@ public class CustomUV : EditorWindow {
     {
         if(Selection.activeGameObject == null)
             return false;
-            
+
         return Selection.activeGameObject.GetComponent<Renderer>() != null;
     }
 
@@ -147,16 +149,20 @@ public class CustomUV : EditorWindow {
         GUILayout.EndHorizontal();
     }
 
+
+
     //Saves the texture
     void SaveTex()
     {
         workTex.Apply();
         byte[] bytes = workTex.EncodeToPNG();
-        File.WriteAllBytes(Application.dataPath + "/Resources/TextureAtlas.png", bytes);
+        File.WriteAllBytes(Application.dataPath + "/Resources/" + atlasName + ".png", bytes);
         AssetDatabase.Refresh();
 
         Refresh();
     }
+
+
 
     //Set a color in the next avaiable spot
     void SetColor(int size, Color color)
@@ -172,6 +178,8 @@ public class CustomUV : EditorWindow {
 
         SaveTex();
     }
+
+
 
     void SetColor(int size, Color[] color)
     {
@@ -190,14 +198,59 @@ public class CustomUV : EditorWindow {
         SaveTex();
     }
 
+
+
     //Force Refresh
     void Refresh()
     {
+        textureAtlas = Resources.Load(atlasName) as Texture2D;
+        AtlasMat = Resources.Load(atlasMatName, typeof(Material)) as Material;
+
+
+        //Setup for first times
+        if(textureAtlas == null || AtlasMat == null)
+        {
+            if(!Directory.Exists(Application.dataPath + "/Resources"))
+            {
+                if(debug)
+                    Debug.Log("Created Resources Folder");
+
+                AssetDatabase.CreateFolder("Assets", "Resources");
+                AssetDatabase.Refresh();
+            }
+
+            if(!File.Exists(Application.dataPath + "/Resources/" + atlasName + ".png"))
+            {
+                ResetTextureAtlas();
+
+                if(debug)
+                    Debug.Log("Created Texture Atlas");
+            }
+
+            TextureImporter textureImporter = (TextureImporter)TextureImporter.GetAtPath("Assets/Resources/" + atlasName + ".png");
+            textureImporter.isReadable = true;
+            textureImporter.SaveAndReimport();
+
+            if(!File.Exists(Application.dataPath + "/Resources/" + atlasMatName))
+            {
+                if(debug)
+                    Debug.Log("Created the Texture Atlas Material");
+
+                Material mat = new Material(Shader.Find("Standard"));
+                mat.mainTexture = Resources.Load(atlasName) as Texture2D;
+
+                AssetDatabase.CreateAsset(mat, "Assets/Resources/" + atlasMatName + ".mat");
+                AssetDatabase.Refresh();
+            }
+
+            textureAtlas = Resources.Load(atlasName) as Texture2D;
+            AtlasMat = Resources.Load(atlasMatName, typeof(Material)) as Material;
+        }
+
+
         //Initialize
         CreateStyles();
         colorPaletteLength = 0;
-        AtlasMat = Resources.Load("TextureAtlasMat", typeof(Material)) as Material;
-        textureAtlas = Resources.Load("TextureAtlas") as Texture2D;
         workTex = new Texture2D(textureAtlas.width, textureAtlas.height);
         gameObject = Selection.activeObject as GameObject;
         gameObjectEditor = Editor.CreateEditor(gameObject);
@@ -373,7 +426,5 @@ public class CustomUV : EditorWindow {
             Debug.Log("Reseted the Texture Atlas");
 
         SaveTex();
-
-        Refresh();
     }
 }
