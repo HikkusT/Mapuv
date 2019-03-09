@@ -405,6 +405,9 @@ public class CustomUV : EditorWindow {
         }
 
         mesh.uv = uvs;
+        Mesh tempMesh = (Mesh)UnityEngine.Object.Instantiate(mesh);
+        AssetDatabase.CreateAsset(tempMesh, "Assets/ReMappedMeshes/" + gameObject.name + ".asset");
+        gameObject.GetComponent<MeshFilter>().mesh = (Mesh)AssetDatabase.LoadAssetAtPath("Assets/ReMappedMeshes/" + gameObject.name + ".asset", typeof(Mesh));
     }
 
     void CopyColors()
