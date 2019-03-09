@@ -33,6 +33,7 @@ public class CustomUV : EditorWindow {
     #region Data Holders
 	GameObject gameObject;
     Mesh mesh;
+    Renderer renderer;
     Texture2D textureAtlas = null;
     Texture2D workTex = null;
     Texture2D[] colors;
@@ -286,7 +287,11 @@ public class CustomUV : EditorWindow {
         workTex = new Texture2D(textureAtlas.width, textureAtlas.height);
         gameObject = Selection.activeObject as GameObject;
         gameObjectEditor = Editor.CreateEditor(gameObject);
-        mesh = gameObject.GetComponent<MeshFilter>().sharedMesh;
+        renderer = gameObject.GetComponent<Renderer>();
+        if(gameObject.GetComponent<SkinnedMeshRenderer>() != null)
+            mesh = gameObject.GetComponent<SkinnedMeshRenderer>().sharedMesh;
+        else
+            mesh = gameObject.GetComponent<MeshFilter>().sharedMesh;
 
         //Count color palette
         for(int i = 0; i < textureAtlas.width * textureAtlas.height / 16; i ++)
@@ -301,8 +306,8 @@ public class CustomUV : EditorWindow {
         //If the object has a mesh, calculate the color picker
         if(mesh)
         {
-            selectedColor = new int[gameObject.GetComponent<MeshFilter>().sharedMesh.subMeshCount];
-            prevSelected = new int[gameObject.GetComponent<MeshFilter>().sharedMesh.subMeshCount];
+            selectedColor = new int[mesh.subMeshCount];
+            prevSelected = new int[mesh.subMeshCount];
             colors = new Texture2D[colorPaletteLength];
 
             for(int i = 0; i < colorPaletteLength; i ++)
@@ -328,10 +333,13 @@ public class CustomUV : EditorWindow {
     {
         for(int i = 0; i < mesh.subMeshCount; i ++)
         {
-            Vector2 subMeshUV;
+            Vector2 subMeshUV = new Vector2(0, 0);
             bool hasUVs = true;
             int[] tris = mesh.GetTriangles(i);
-            subMeshUV = mesh.uv[tris[0]];
+            if(mesh.uv.Length == 0)
+                hasUVs = false;
+            else
+                subMeshUV = mesh.uv[tris[0]];
 
             for(int j = 0; j < tris.Length && hasUVs; j ++)
                 if(mesh.uv[tris[j]] != subMeshUV)
